@@ -199,30 +199,39 @@ func orderFood(person ClientID, personName string, yardChan chan YardRequest, or
 
 func checkWindows(myWindow chan bool, neighbourWindow chan bool) (bool, bool) {
 	// "When one of them wants to release their pet, both flags must be down."
-	myWindowFlag := peekWindow(myWindow)
-	// Tentamos "espreitar" a janela do vizinho sem bloquear o programa
-	neighbourWindowFlag := peekWindow(neighbourWindow)
+	myWindowFlag := false
+	select {
+	case val := <-myWindow:
+		myWindowFlag = val
+		// don't put back — we own it, letDogOut/person will restore it
+	default:
+		myWindowFlag = false
+	}
 
+	// Tentamos "espreitar" a janela do vizinho sem bloquear o programa
 	// palavras sábias do nosso amigo:
 	// Conseguimos ler o estado real do vizinho!
 	// Mas atenção: como lemos o valor, TEMOS de o devolver imediatamente para o canal do vizinho
 	// para ele não ficar sem a flag dele! (Isto é crucial em Go)
-	if neighbourWindowFlag {
-		neighbourWindow <- true
-	}
+	neighbourWindowFlag := false
 
-	if myWindowFlag {
-		myWindow <- myWindowFlag
+	select {
+	case val := <-neighbourWindow:
+		neighbourWindowFlag = val
+		neighbourWindow <- val // immediately put back
+	default:
+		neighbourWindowFlag = true
 	}
 
 	return !myWindowFlag && !neighbourWindowFlag, myWindowFlag
 }
 
-func letDogOut(person ClientID, personName string, yardChan chan YardRequest, myWindow chan bool, myReplyChan chan bool) bool {
+func letDogOut(person ClientID, personName string, yardChan chan YardRequest, myWindow chan bool, myReplyChan chan bool, myWindowFlag bool) bool {
 	yardChan <- YardRequest{Type: EnterYard, Sender: person, ReplyChan: myReplyChan}
 	allowed := <-myReplyChan
 
 	if !allowed {
+		myWindow <- myWindowFlag
 		return false
 	}
 
@@ -246,15 +255,6 @@ func letDogOut(person ClientID, personName string, yardChan chan YardRequest, my
 	return true
 }
 
-func peekWindow(w chan bool) bool {
-	select {
-	case val := <-w:
-		return val
-	default:
-		return false // empty means flag is down (initial state)
-	}
-}
-
 // -------------------------------- PERSON -------------------------------------
 
 func person(person ClientID, yardChan chan YardRequest, orderChan chan Order, myWindow chan bool, neighbourWindow chan bool) {
@@ -276,7 +276,7 @@ func person(person ClientID, yardChan chan YardRequest, orderChan chan Order, my
 
 		// Se ambas as janelas estão DOWN, podemos tentar pedir o quintal ao yardManager
 		if canDogGoOut {
-			dogWentOut := letDogOut(person, personName, yardChan, myWindow, myReplyChan)
+			dogWentOut := letDogOut(person, personName, yardChan, myWindow, myReplyChan, myWindowFlag)
 			if dogWentOut {
 				time.Sleep(10 * time.Second) // Passado este tempo a comida acaba
 				hasFood = false
