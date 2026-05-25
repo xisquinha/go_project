@@ -205,7 +205,7 @@ func checkWindows(myWindow chan bool, neighbourWindow chan bool) (bool, bool) {
 		myWindowFlag = val
 		// don't put back — we own it, letDogOut/person will restore it
 	default:
-		myWindowFlag = false
+		myWindowFlag = true
 	}
 
 	// Tentamos "espreitar" a janela do vizinho sem bloquear o programa
