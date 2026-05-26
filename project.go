@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"runtime/pprof"
 	"time"
 )
 
@@ -310,6 +312,12 @@ func clientIdToString(client ClientID) string {
 
 func main() {
 
+	f, err := os.Create("goroutine_profile.prof")
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+
 	yardChan := make(chan YardRequest)
 	orderChan := make(chan Order) // channel for alice and bob order food
 
@@ -324,6 +332,8 @@ func main() {
 	go person(Alice, yardChan, orderChan, aliceWindow, bobWindow)
 	// Bob
 	go person(Bob, yardChan, orderChan, bobWindow, aliceWindow)
+
+	pprof.Lookup("goroutine").WriteTo(f, 0)
 
 	// Mantém o programa principal vivo, ou entao usamos WaitGroup, mas tmb as go routines nunca acabam entao tanto faz
 	select {}
