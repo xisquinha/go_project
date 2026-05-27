@@ -228,12 +228,12 @@ func checkWindows(myWindow chan bool, neighbourWindow chan bool) (bool, bool) {
 	return !myWindowFlag && !neighbourWindowFlag, myWindowFlag
 }
 
-func letDogOut(person ClientID, personName string, yardChan chan YardRequest, myWindow chan bool, myReplyChan chan bool, myWindowFlag bool) bool {
+func letDogOut(person ClientID, personName string, yardChan chan YardRequest, myWindow chan bool, myReplyChan chan bool) bool {
 	yardChan <- YardRequest{Type: EnterYard, Sender: person, ReplyChan: myReplyChan}
 	allowed := <-myReplyChan
 
 	if !allowed {
-		myWindow <- myWindowFlag
+		myWindow <- false
 		return false
 	}
 
@@ -278,7 +278,7 @@ func person(person ClientID, yardChan chan YardRequest, orderChan chan Order, my
 
 		// Se ambas as janelas estão DOWN, podemos tentar pedir o quintal ao yardManager
 		if canDogGoOut {
-			dogWentOut := letDogOut(person, personName, yardChan, myWindow, myReplyChan, myWindowFlag)
+			dogWentOut := letDogOut(person, personName, yardChan, myWindow, myReplyChan)
 			if dogWentOut {
 				time.Sleep(10 * time.Second) // Passado este tempo a comida acaba
 				hasFood = false
