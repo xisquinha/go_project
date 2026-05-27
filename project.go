@@ -202,13 +202,10 @@ func orderFood(person ClientID, personName string, yardChan chan YardRequest, or
 func checkWindows(myWindow chan bool, neighbourWindow chan bool) (bool, bool) {
 	// "When one of them wants to release their pet, both flags must be down."
 	myWindowFlag := false
-	select {
-	case val := <-myWindow:
-		myWindowFlag = val
-		// don't put back — we own it, letDogOut/person will restore it
-	default:
-		myWindowFlag = true
-	}
+	// simple receive instead of select with a single case
+	val := <-myWindow
+	myWindowFlag = val
+	// don't put back — we own it, letDogOut/person will restore it
 
 	// Tentamos "espreitar" a janela do vizinho sem bloquear o programa
 	// palavras sábias do nosso amigo:
